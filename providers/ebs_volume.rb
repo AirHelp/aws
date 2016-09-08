@@ -187,17 +187,15 @@ def create_volume(snapshot_id, size, availability_zone, timeout, volume_type, pi
     Timeout.timeout(timeout) do
       loop do
         vol = volume_by_id(nv[:volume_id])
-        if vol && vol[:state] != 'deleting'
+        if vol
           if ['in-use', 'available'].include?(vol[:state])
             Chef::Log.info("Volume #{nv[:volume_id]} is available")
             break
           else
             Chef::Log.debug("Volume is #{vol[:state]}")
           end
-          sleep 3
-        else
-          fail "Volume #{nv[:volume_id]} no longer exists"
         end
+        sleep 3
       end
     end
   rescue Timeout::Error
@@ -217,7 +215,7 @@ def attach_volume(volume_id, instance_id, device, timeout)
     Timeout.timeout(timeout) do
       loop do
         vol = volume_by_id(volume_id)
-        if vol && vol[:state] != 'deleting'
+        if vol
           attachment = vol[:attachments].find { |a| a[:state] == 'attached' }
           if !attachment.nil?
             if attachment[:instance_id] == instance_id
@@ -229,10 +227,8 @@ def attach_volume(volume_id, instance_id, device, timeout)
           else
             Chef::Log.debug("Volume is #{vol[:state]}")
           end
-          sleep 3
-        else
-          fail "Volume #{volume_id} no longer exists"
         end
+        sleep 3
       end
     end
   rescue Timeout::Error
@@ -256,7 +252,7 @@ def detach_volume(volume_id, timeout)
     Timeout.timeout(timeout) do
       loop do
         vol = volume_by_id(volume_id)
-        if vol && vol[:state] != 'deleting'
+        if vol
           if vol[:instance_id] != orig_instance_id
             Chef::Log.info("Volume detached from #{orig_instance_id}")
             break
@@ -267,8 +263,8 @@ def detach_volume(volume_id, timeout)
           Chef::Log.debug("Volume #{volume_id} no longer exists")
           break
         end
-        sleep 3
       end
+      sleep 3
     end
   rescue Timeout::Error
     raise "Timed out waiting for volume detachment after #{timeout} seconds"
